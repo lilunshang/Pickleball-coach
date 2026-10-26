@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>理論上匹克球｜教練</title>
+<!-- v4.6（2026/10/26）：單堂專項課 — 籌備中顯示「待成班（M/D 12:00 決定）」、不顯示第 1 堂（須搭配 GAS v4.6） -->
 <!-- v4.5（2026/10/26）：開啟速度比照場主 OA — 一開就帶回 確認上課／課程日誌／不可排日期／教練資料 的資料（init bundle，須搭配 GAS v4.5）；
      頁面底部新增分頁列，切換頁面不必回聊天室點選單（我的課表、我的學員仍是聊天室 Flex 卡片） -->
 <!-- v4.4（2026/10/25）：選單「確認上課」→ ?page=confirm 待點名清單（與課堂學員共用 rosterSessions 資料與快取；須搭配 GAS v4.4） -->
@@ -372,9 +373,9 @@
 // ================================================================
 // 設定：建置手冊第 09 節
 // ================================================================
-const LIFF_ID = '2011926553-HztSwfha';          // 例：2001234567-AbCdEfGh
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbx9cI5ewgB8mSUg_lIiiqa9VcrWUice74TXzA8c_t4xP_D4q16ja7nyoAi7kDCI3JOz7A/exec';  // https://script.google.com/macros/s/…/exec
-const SHOW_ERROR_CODE = false;                    // 測試期間顯示錯誤代碼；上線後改為 false
+const LIFF_ID = '請填入教練 LIFF ID';          // 例：2001234567-AbCdEfGh
+const GAS_URL = '請填入 GAS 網頁應用程式網址';  // https://script.google.com/macros/s/…/exec
+const SHOW_ERROR_CODE = true;                    // 測試期間顯示錯誤代碼；上線後改為 false
 
 // ================================================================
 // 共用
@@ -773,7 +774,7 @@ function sessionItem(s, tag, extra, onClick) {
       tag ? el('span', { class: 'tag', text: tag }) : null,
     ]),
     el('div', { text: s.className || '（未命名班級）' }),
-    el('div', { class: 'sub', text: [s.place || s.venue, s.lesson ? '第 ' + s.lesson + ' 堂' : '', s.pendingClass ? '待成班' : '', extra ? '主題：' + extra : ''].filter(Boolean).join('・') }),
+    el('div', { class: 'sub', text: [s.place || s.venue, s.lesson ? '第 ' + s.lesson + ' 堂' : '', s.pendingClass ? (s.pendingNote || '待成班') : '', extra ? '主題：' + extra : ''].filter(Boolean).join('・') }),
   ]);
 }
 
@@ -993,7 +994,7 @@ function renderRoster(sessionId, back, d) {
   const reopen = () => openRoster(sessionId, back);
 
   $('r_title').textContent = s.dateText + ' ' + s.start + (s.end ? '–' + s.end : '') + '　' + (s.className || '');
-  $('r_sub').textContent = [s.tag, s.place || s.venue, s.pendingClass ? '待成班' : '', s.lesson ? '第 ' + s.lesson + ' 堂' : '', '本班已上 ' + d.heldCount + ' 堂'].filter(Boolean).join('・');
+  $('r_sub').textContent = [s.tag, s.place || s.venue, s.pendingClass ? (s.pendingNote || '待成班') : '', s.lesson ? '第 ' + s.lesson + ' 堂' : '', '本班已上 ' + d.heldCount + ' 堂'].filter(Boolean).join('・');
 
   // 上一堂的紀錄
   const prevBox = $('r_prev');
