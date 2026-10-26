@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>理論上匹克球｜教練</title>
+<!-- v4.5（2026/10/26）：開啟速度比照場主 OA — 一開就帶回 確認上課／課程日誌／不可排日期／教練資料 的資料（init bundle，須搭配 GAS v4.5）；
+     頁面底部新增分頁列，切換頁面不必回聊天室點選單（我的課表、我的學員仍是聊天室 Flex 卡片） -->
 <!-- v4.4（2026/10/25）：選單「確認上課」→ ?page=confirm 待點名清單（與課堂學員共用 rosterSessions 資料與快取；須搭配 GAS v4.4） -->
 <!-- 先建立連線，第一個請求少等一段握手時間 -->
 <link rel="preconnect" href="https://script.google.com">
@@ -145,6 +147,14 @@
   .sk .a { height: 64px; } .sk .b { height: 76px; } .sk .c { height: 16px; width: 40%; border-radius: 6px; }
   @keyframes sk { to { background-position: -200% 0; } }
   @media (prefers-reduced-motion: reduce) { .sk div { animation: none; } }
+  /* v4.5：頁面底部分頁列（確認上課／課程日誌／不可排日期／教練資料）；送出列放在分頁列上方 */
+  .tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 8; display: flex; background: #fff; border-top: 1px solid var(--line);
+    padding-bottom: env(safe-area-inset-bottom); }
+  .tabbar button { flex: 1; min-width: 0; height: 45px; border: 0; background: none; padding: 0 2px; font-size: 13px; font-weight: 600; color: var(--muted); white-space: nowrap; font-family: inherit; }
+  .tabbar button.on { color: var(--green-dark); box-shadow: inset 0 3px 0 var(--green); }
+  body.has-tabs .bar { bottom: calc(44px + env(safe-area-inset-bottom)); padding-bottom: 12px; }
+  body.has-tabs main { padding-bottom: 170px; }
+  body.has-tabs .toast { bottom: calc(140px + env(safe-area-inset-bottom)); }
   .toast { position: fixed; left: 50%; bottom: calc(90px + env(safe-area-inset-bottom)); transform: translateX(-50%);
     background: #16463a; color: #fff; padding: 8px 14px; border-radius: 999px; font-size: 13px; z-index: 9; max-width: 90%; }
 </style>
@@ -158,6 +168,13 @@
   <span class="sync hidden" id="syncPill">更新中…</span>
 </header>
 <div class="toast hidden" id="toast" role="status"></div>
+<!-- v4.5：分頁列（在職教練才顯示） -->
+<nav id="tabbar" class="tabbar hidden">
+  <button type="button" data-tab="confirm">確認上課</button>
+  <button type="button" data-tab="journal">課程日誌</button>
+  <button type="button" data-tab="unavailable">不可排日期</button>
+  <button type="button" data-tab="profile">教練資料</button>
+</nav>
 
 <!-- 共用：載入中／錯誤 -->
 <section id="viewLoading" class="sk" aria-label="載入中">
@@ -355,9 +372,9 @@
 // ================================================================
 // 設定：建置手冊第 09 節
 // ================================================================
-const LIFF_ID = '2011926553-HztSwfha';          // 例：2001234567-AbCdEfGh
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbx9cI5ewgB8mSUg_lIiiqa9VcrWUice74TXzA8c_t4xP_D4q16ja7nyoAi7kDCI3JOz7A/exec';  // https://script.google.com/macros/s/…/exec
-const SHOW_ERROR_CODE = false;                    // 測試期間顯示錯誤代碼；上線後改為 false
+const LIFF_ID = '請填入教練 LIFF ID';          // 例：2001234567-AbCdEfGh
+const GAS_URL = '請填入 GAS 網頁應用程式網址';  // https://script.google.com/macros/s/…/exec
+const SHOW_ERROR_CODE = true;                    // 測試期間顯示錯誤代碼；上線後改為 false
 
 // ================================================================
 // 共用
@@ -368,6 +385,7 @@ const app = { idToken: '', page: 'profile', backTo: null, nav: 0, early: false }
 
 function show(view, title) {
   VIEWS.forEach((v) => $(v).classList.toggle('hidden', v !== view));
+  syncTabbar(view);
   if (title) { $('pageTitle').textContent = title; document.title = title + '｜理論上匹克球'; }
   window.scrollTo(0, 0);
 }
@@ -458,6 +476,8 @@ const store = {
   },
 };
 const MEM_MS = 30000;
+const TAB_MS = 120000; // v4.5：選單頁（bundle 帶回的）2 分鐘內切換直接用記憶中的資料
+const BUNDLE_KEYS = ['profile', 'rlist', 'jlist', 'unavail'];
 const mem = {};
 function remember(key, d) {
   mem[key] = { t: Date.now(), d: d };
@@ -465,8 +485,53 @@ function remember(key, d) {
 }
 function recall(key) {
   const m = mem[key];
-  return m && Date.now() - m.t < MEM_MS ? m.d : null;
+  return m && Date.now() - m.t < (BUNDLE_KEYS.indexOf(key) >= 0 ? TAB_MS : MEM_MS) ? m.d : null;
 }
+
+// ---- v4.5：開頁一次 init（bundle）帶回所有選單頁 ----
+function startBoot() {
+  app.boot = callGas({ action: 'init', bundle: true }).then((r) => {
+    if (r && r.ok) {
+      app.status = r.status;
+      const pages = r.pages || {};
+      remember('profile', Object.assign({}, r, { pages: null }));
+      Object.keys(pages).forEach((k) => { if (pages[k] && pages[k].ok !== false) remember(k, pages[k]); });
+      syncTabbar(app.view);
+    }
+    return r;
+  });
+  app.boot.then(() => (app.boot = null), () => (app.boot = null));
+}
+/** 選單頁的資料：bundle 還在路上就等它；bundle 沒帶到（出錯、非在職）才自己讀 */
+async function fromBoot(key, payload) {
+  const b = await app.boot;
+  if (key === 'profile') return b;
+  const p = b && b.ok && b.pages ? b.pages[key] : null;
+  if (p && p.ok !== false) return p;
+  return callGas(payload);
+}
+
+// ---- v4.5：分頁列 ----
+const TAB_VIEWS = { viewConfirmList: 'confirm', viewJournalList: 'journal', viewUnavail: 'unavailable', viewProfile: 'profile' };
+function coachActive() {
+  if (app.status) return app.status === 'active';
+  const p = store.get('v:profile');
+  return !!(p && p.status === 'active');
+}
+function syncTabbar(view) {
+  app.view = view;
+  const tab = TAB_VIEWS[view];
+  const on = !!(tab && coachActive());
+  $('tabbar').classList.toggle('hidden', !on);
+  document.body.classList.toggle('has-tabs', on);
+  if (on) $('tabbar').querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.tab === tab));
+}
+$('tabbar').addEventListener('click', (ev) => {
+  const b = ev.target.closest('button[data-tab]');
+  if (!b) return;
+  if (b.classList.contains('on')) return window.scrollTo({ top: 0, behavior: 'smooth' });
+  route({ page: b.dataset.tab });
+});
 function forget(keys) {
   keys.forEach((k) => delete mem[k]);
 }
@@ -547,7 +612,7 @@ async function view(key, payload, render) {
   }
   let r;
   try {
-    r = await callGas(payload);
+    r = app.boot && BUNDLE_KEYS.indexOf(key) >= 0 ? await fromBoot(key, payload) : await callGas(payload); // v4.5
   } catch (e) {
     if (nav !== app.nav) return null;
     setStale(false);
@@ -631,6 +696,7 @@ function openProfile() {
 }
 
 function renderProfile(d) {
+  if (d.status) app.status = d.status; // v4.5：分頁列只給在職教練
   profile.submissionId = newId();
   const c = d.coach || {};
   $('p_name').value = c.姓名 || (d.profile && d.profile.name) || '';
@@ -1333,6 +1399,7 @@ function main() {
     app.early = true;
   }
   initLiff();
+  startBoot(); // v4.5：所有選單頁的資料一次帶回（route 要的頁面直接等它，不另外請求）
   route(params);
 }
 main();
