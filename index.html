@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>理論上匹克球｜教練</title>
+<!-- v4.9（2026/11/1）：我的課表改成 LIFF 頁面 ?page=schedule — 整個月的月曆，可依地區、據點篩選，點日期只看那天；點課堂看學員／確認上課；分頁列加「課表」（須搭配 GAS v4.9） -->
 <!-- v4.6（2026/10/26）：單堂專項課 — 籌備中顯示「待成班（M/D 12:00 決定）」、不顯示第 1 堂（須搭配 GAS v4.6） -->
 <!-- v4.5（2026/10/26）：開啟速度比照場主 OA — 一開就帶回 確認上課／課程日誌／不可排日期／教練資料 的資料（init bundle，須搭配 GAS v4.5）；
      頁面底部新增分頁列，切換頁面不必回聊天室點選單（我的課表、我的學員仍是聊天室 Flex 卡片） -->
@@ -158,6 +159,42 @@
   body.has-tabs .toast { bottom: calc(140px + env(safe-area-inset-bottom)); }
   .toast { position: fixed; left: 50%; bottom: calc(90px + env(safe-area-inset-bottom)); transform: translateX(-50%);
     background: #16463a; color: #fff; padding: 8px 14px; border-radius: 999px; font-size: 13px; z-index: 9; max-width: 90%; }
+  /* MonthCal（月曆）v1 */
+  .mc-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 2px 0 10px; }
+  .mc-title { text-align: center; }
+  .mc-title b { display: block; font-size: 18px; color: var(--green-dark, #16463a); }
+  .mc-title span { font-size: 12px; color: var(--muted, #6b7a74); }
+  .mc-nav { width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--line, #c9d6d0); background: #fff; color: var(--green-dark, #16463a); font-size: 22px; line-height: 1; font-family: inherit; }
+  .mc-link { display: block; margin: 0 auto 10px; border: 0; background: none; color: var(--green, #1f5f4a); font-weight: 700; font-size: 13px; font-family: inherit; text-decoration: underline; }
+  .mc-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 8px; }
+  .mc-lab { font-size: 12px; color: var(--muted, #6b7a74); font-weight: 600; min-width: 2.4em; }
+  .mc-chip { border: 1px solid var(--line, #c9d6d0); background: #fff; border-radius: 999px; padding: 5px 12px; font-size: 13px; font-weight: 600; color: #333; font-family: inherit; }
+  .mc-chip.on { background: var(--green, #1f5f4a); border-color: var(--green, #1f5f4a); color: #fff; }
+  .mc-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; background: #fff; border: 1px solid var(--line, #c9d6d0); border-radius: 12px; padding: 8px; margin: 6px 0 14px; }
+  .mc-wd { text-align: center; font-size: 11px; color: var(--muted, #6b7a74); font-weight: 600; padding-bottom: 2px; }
+  .mc-wd.we { color: #b4572e; }
+  .mc-d { position: relative; aspect-ratio: 1 / 1; min-height: 38px; border: 0; border-radius: 8px; background: none; padding: 0; font-family: inherit; color: #9aa6a1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; }
+  .mc-d.blank { visibility: hidden; }
+  .mc-d .n { font-size: 14px; font-weight: 600; line-height: 1.1; }
+  .mc-d.has { background: var(--green-light, #e6f0eb); color: var(--green-dark, #16463a); }
+  .mc-d.has.past { opacity: .6; }
+  .mc-d .c { font-size: 10px; font-weight: 800; min-width: 16px; padding: 0 4px; border-radius: 999px; background: var(--green, #1f5f4a); color: #fff; line-height: 15px; }
+  .mc-d.today { box-shadow: inset 0 0 0 2px #b4572e; }
+  .mc-d.sel { background: var(--green, #1f5f4a); color: #fff; }
+  .mc-d.sel .c { background: #fff; color: var(--green-dark, #16463a); }
+  .mc-day { font-size: 14px; font-weight: 800; color: var(--green-dark, #16463a); margin: 14px 2px 8px; display: flex; align-items: center; gap: 6px; }
+  .mc-day.today { color: #b4572e; }
+  .mc-tag { font-size: 11px; font-weight: 700; background: #fff4ea; color: #b4572e; border-radius: 999px; padding: 1px 8px; }
+  .mc-empty { text-align: center; color: var(--muted, #6b7a74); font-size: 14px; padding: 20px 8px; background: #fff; border: 1px dashed var(--line, #c9d6d0); border-radius: 12px; }
+  .mc-sec { display: flex; align-items: center; gap: 8px; width: 100%; margin: 16px 0 4px; padding: 10px 12px; border: 1px solid var(--line, #c9d6d0); border-radius: 10px; background: #fff; font-family: inherit; font-size: 14px; font-weight: 800; color: var(--green-dark, #16463a); text-align: left; }
+  .mc-sec .car { width: 14px; color: var(--green, #1f5f4a); }
+  .mc-sec .cnt { margin-left: auto; font-size: 12px; font-weight: 700; color: var(--muted, #6b7a74); }
+  .mc-sec.done { color: var(--muted, #6b7a74); background: transparent; }
+  .mc-sec + .mc-day { margin-top: 10px; }
+  /* v4.9：我的課表 */
+  .sc-item .top { display: flex; justify-content: space-between; gap: 8px; font-weight: 700; color: var(--green-dark); }
+  .sc-item .tag.ok { color: var(--green); }
+  .sc-item .cnt { font-size: 12px; font-weight: 700; color: var(--green); white-space: nowrap; }
 </style>
 </head>
 <body>
@@ -171,6 +208,7 @@
 <div class="toast hidden" id="toast" role="status"></div>
 <!-- v4.5：分頁列（在職教練才顯示） -->
 <nav id="tabbar" class="tabbar hidden">
+  <button type="button" data-tab="schedule">課表</button>
   <button type="button" data-tab="confirm">確認上課</button>
   <button type="button" data-tab="journal">課程日誌</button>
   <button type="button" data-tab="unavailable">不可排日期</button>
@@ -309,6 +347,11 @@
 </main>
 
 <!-- ============ v4.4：確認上課清單（選單「確認上課」） ============ -->
+<!-- ============ v4.9：我的課表（整個月） ============ -->
+<main id="viewSchedule" class="hidden">
+  <div id="sc_box"></div>
+</main>
+
 <main id="viewConfirmList" class="hidden">
   <div class="hint" style="margin:0 4px 10px" id="cl_hint">點一堂課開始點名；學員掃 QR 到場的會先標好「出席」。</div>
   <div id="cl_list"></div>
@@ -370,18 +413,175 @@
 </main>
 
 <script>
+/**
+ * MonthCal：月曆＋地區／據點篩選＋依日期清單（教練 OA 我的課表、場主 OA 我的排班共用）v2（2026/11/1：清單分「未結束／已結束」可收合）
+ * MonthCal.render(box, {
+ *   month: 'yyyy-MM', today: 'yyyy-MM-dd',
+ *   items: [{ date:'yyyy-MM-dd', venueId, venue, region, ... }],   // 已依時間排序
+ *   state: { region, venue, day },                                 // 篩選狀態（呼叫端保存，切月份也保留地區／據點）
+ *   unit: '堂', itemNode: (it) => Node, onMonth: (month) => {}, emptyText: '這個月沒有排課',
+ *   isEnded: (it) => bool（選填；預設：日期在今天以前，或今天且結束時間已過）
+ * })
+ */
+var MonthCal = (function () {
+  'use strict';
+  var WD = ['一', '二', '三', '四', '五', '六', '日'];
+  function h(tag, attrs, kids) {
+    var e = document.createElement(tag);
+    Object.keys(attrs || {}).forEach(function (k) {
+      var v = attrs[k];
+      if (v === null || v === undefined || v === false) return;
+      if (k === 'text') e.textContent = v;
+      else if (k === 'onclick') e.addEventListener('click', v);
+      else e.setAttribute(k, v === true ? '' : v);
+    });
+    (kids || []).forEach(function (c) { if (c) e.appendChild(typeof c === 'string' ? document.createTextNode(c) : c); });
+    return e;
+  }
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+  function shiftMonth(m, d) {
+    var y = +m.slice(0, 4);
+    var mo = +m.slice(5, 7) - 1 + d;
+    y += Math.floor(mo / 12);
+    mo = ((mo % 12) + 12) % 12;
+    return y + '-' + pad(mo + 1);
+  }
+  function dateLabel(key) {
+    var p = key.split('-');
+    var dt = new Date(+p[0], +p[1] - 1, +p[2]);
+    return (+p[1]) + '/' + (+p[2]) + '（' + '日一二三四五六'.charAt(dt.getDay()) + '）';
+  }
+  function regionOf(it) { return it.region || '其他地區'; }
+
+  function render(box, opt) {
+    var st = opt.state || (opt.state = {});
+    var unit = opt.unit || '筆';
+    var all = opt.items || [];
+    var again = function () { render(box, opt); };
+    box.innerHTML = '';
+    box.classList.add('mc');
+
+    var regions = [];
+    all.forEach(function (it) { var r = regionOf(it); if (regions.indexOf(r) < 0) regions.push(r); });
+    if (st.region && regions.indexOf(st.region) < 0) st.region = '';
+    var venues = [];
+    all.forEach(function (it) {
+      if (st.region && regionOf(it) !== st.region) return;
+      if (it.venueId && !venues.some(function (v) { return v.id === it.venueId; })) venues.push({ id: it.venueId, name: it.venue || '（未設定據點）' });
+    });
+    if (st.venue && !venues.some(function (v) { return v.id === st.venue; })) st.venue = '';
+    var shown = all.filter(function (it) { return (!st.region || regionOf(it) === st.region) && (!st.venue || it.venueId === st.venue); });
+    if (st.day && st.day.slice(0, 7) !== opt.month) st.day = '';
+
+    // 月份
+    var y = +opt.month.slice(0, 4);
+    var m = +opt.month.slice(5, 7);
+    box.appendChild(h('div', { class: 'mc-bar' }, [
+      h('button', { type: 'button', class: 'mc-nav', 'aria-label': '上個月', text: '‹', onclick: function () { opt.onMonth(shiftMonth(opt.month, -1)); } }),
+      h('div', { class: 'mc-title' }, [h('b', { text: y + ' 年 ' + m + ' 月' }), h('span', { text: '共 ' + shown.length + ' ' + unit })]),
+      h('button', { type: 'button', class: 'mc-nav', 'aria-label': '下個月', text: '›', onclick: function () { opt.onMonth(shiftMonth(opt.month, 1)); } }),
+    ]));
+    if (opt.today && opt.today.slice(0, 7) !== opt.month) {
+      box.appendChild(h('button', { type: 'button', class: 'mc-link', text: '回到本月', onclick: function () { opt.onMonth(opt.today.slice(0, 7)); } }));
+    }
+
+    // 地區 → 據點
+    var chipRow = function (label, list, cur, set) {
+      if (list.length < 2) return;
+      var row = h('div', { class: 'mc-chips' }, [h('span', { class: 'mc-lab', text: label })]);
+      [{ id: '', name: '全部' }].concat(list).forEach(function (o) {
+        row.appendChild(h('button', { type: 'button', class: 'mc-chip' + (cur === o.id ? ' on' : ''), text: o.name, onclick: function () { set(o.id); st.day = ''; again(); } }));
+      });
+      box.appendChild(row);
+    };
+    chipRow('地區', regions.map(function (r) { return { id: r, name: r }; }), st.region || '', function (v) { st.region = v; st.venue = ''; });
+    chipRow('據點', venues, st.venue || '', function (v) { st.venue = v; });
+
+    // 月曆
+    var count = {};
+    shown.forEach(function (it) { count[it.date] = (count[it.date] || 0) + 1; });
+    var grid = h('div', { class: 'mc-grid' });
+    WD.forEach(function (w, i) { grid.appendChild(h('div', { class: 'mc-wd' + (i >= 5 ? ' we' : ''), text: w })); });
+    var lead = (new Date(y, m - 1, 1).getDay() + 6) % 7;
+    var days = new Date(y, m, 0).getDate();
+    for (var i = 0; i < lead; i++) grid.appendChild(h('div', { class: 'mc-d blank' }));
+    for (var d = 1; d <= days; d++) {
+      (function (key, n) {
+        var cls = 'mc-d' + (n ? ' has' : '') + (key === opt.today ? ' today' : '') + (key === st.day ? ' sel' : '') + (key < (opt.today || '') ? ' past' : '');
+        grid.appendChild(h('button', { type: 'button', class: cls, disabled: !n, 'aria-label': dateLabel(key) + (n ? ' ' + n + ' ' + unit : ''),
+          onclick: function () { st.day = st.day === key ? '' : key; again(); } }, [
+          h('span', { class: 'n', text: String(+key.slice(8)) }),
+          n ? h('span', { class: 'c', text: String(n) }) : null,
+        ]));
+      })(opt.month + '-' + pad(d), count[opt.month + '-' + pad(d)] || 0);
+    }
+    box.appendChild(grid);
+
+    // 清單：v2 依「未結束／已結束」分組，各組可收合（預設未結束展開、已結束收起）
+    var list = st.day ? shown.filter(function (it) { return it.date === st.day; }) : shown;
+    var wrap = h('div', { class: 'mc-list' });
+    if (st.day) wrap.appendChild(h('button', { type: 'button', class: 'mc-link', text: '‹ 顯示整個月', onclick: function () { st.day = ''; again(); } }));
+    if (!list.length) wrap.appendChild(h('div', { class: 'mc-empty', text: opt.emptyText || '這個月沒有資料' }));
+    var nowHM = opt.nowTime || nowHHMM();
+    var isEnded = opt.isEnded || function (it) {
+      if (!opt.today) return false;
+      if (it.date !== opt.today) return it.date < opt.today;
+      var e = it.end || it.start || '';
+      return !!e && e <= nowHM;
+    };
+    if (!st.open) st.open = { up: true, done: false };
+    var groups = [
+      { key: 'up', label: '未結束', items: list.filter(function (it) { return !isEnded(it); }) },
+      { key: 'done', label: '已結束', items: list.filter(isEnded) },
+    ];
+    groups.forEach(function (g) {
+      if (!g.items.length) return;
+      var open = !!st.open[g.key];
+      wrap.appendChild(h('button', { type: 'button', class: 'mc-sec' + (open ? ' open' : '') + ' ' + g.key, 'aria-expanded': open ? 'true' : 'false',
+        onclick: function () { st.open[g.key] = !open; again(); } }, [
+        h('span', { class: 'car', text: open ? '▾' : '▸' }),
+        h('span', { text: g.label }),
+        h('span', { class: 'cnt', text: g.items.length + ' ' + unit }),
+      ]));
+      if (!open) return;
+      var cur = '';
+      g.items.forEach(function (it) {
+        if (it.date !== cur) {
+          cur = it.date;
+          wrap.appendChild(h('div', { class: 'mc-day' + (cur === opt.today ? ' today' : '') }, [dateLabel(cur), cur === opt.today ? h('span', { class: 'mc-tag', text: '今天' }) : null]));
+        }
+        wrap.appendChild(opt.itemNode(it));
+      });
+    });
+    box.appendChild(wrap);
+  }
+  function nowHHMM() {
+    var p = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Taipei', hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(new Date());
+    var o = {};
+    p.forEach(function (x) { o[x.type] = x.value; });
+    return (o.hour === '24' ? '00' : o.hour) + ':' + o.minute;
+  }
+  function thisMonth() {
+    var p = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Taipei', year: 'numeric', month: '2-digit' }).formatToParts(new Date());
+    var o = {};
+    p.forEach(function (x) { o[x.type] = x.value; });
+    return o.year + '-' + o.month;
+  }
+  return { render: render, shiftMonth: shiftMonth, thisMonth: thisMonth, dateLabel: dateLabel };
+})();
+
 // ================================================================
 // 設定：建置手冊第 09 節
 // ================================================================
-const LIFF_ID = '2011926553-HztSwfha';          // 例：2001234567-AbCdEfGh
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbx9cI5ewgB8mSUg_lIiiqa9VcrWUice74TXzA8c_t4xP_D4q16ja7nyoAi7kDCI3JOz7A/exec';  // https://script.google.com/macros/s/…/exec
-const SHOW_ERROR_CODE = false;                    // 測試期間顯示錯誤代碼；上線後改為 false
+const LIFF_ID = '請填入教練 LIFF ID';          // 例：2001234567-AbCdEfGh
+const GAS_URL = '請填入 GAS 網頁應用程式網址';  // https://script.google.com/macros/s/…/exec
+const SHOW_ERROR_CODE = true;                    // 測試期間顯示錯誤代碼；上線後改為 false
 
 // ================================================================
 // 共用
 // ================================================================
 const $ = (id) => document.getElementById(id);
-const VIEWS = ['viewLoading', 'viewError', 'viewDone', 'viewProfile', 'viewJournalList', 'viewJournalForm', 'viewRosterList', 'viewRoster', 'viewConfirmList', 'viewConfirm', 'viewUnavail'];
+const VIEWS = ['viewLoading', 'viewError', 'viewDone', 'viewSchedule', 'viewProfile', 'viewJournalList', 'viewJournalForm', 'viewRosterList', 'viewRoster', 'viewConfirmList', 'viewConfirm', 'viewUnavail'];
 const app = { idToken: '', page: 'profile', backTo: null, nav: 0, early: false };
 
 function show(view, title) {
@@ -478,7 +678,7 @@ const store = {
 };
 const MEM_MS = 30000;
 const TAB_MS = 120000; // v4.5：選單頁（bundle 帶回的）2 分鐘內切換直接用記憶中的資料
-const BUNDLE_KEYS = ['profile', 'rlist', 'jlist', 'unavail'];
+const BUNDLE_KEYS = ['profile', 'rlist', 'jlist', 'unavail', 'sched:' + MonthCal.thisMonth()]; // v4.9：本月課表
 const mem = {};
 function remember(key, d) {
   mem[key] = { t: Date.now(), d: d };
@@ -513,7 +713,7 @@ async function fromBoot(key, payload) {
 }
 
 // ---- v4.5：分頁列 ----
-const TAB_VIEWS = { viewConfirmList: 'confirm', viewJournalList: 'journal', viewUnavail: 'unavailable', viewProfile: 'profile' };
+const TAB_VIEWS = { viewSchedule: 'schedule', viewConfirmList: 'confirm', viewJournalList: 'journal', viewUnavail: 'unavailable', viewProfile: 'profile' };
 function coachActive() {
   if (app.status) return app.status === 'active';
   const p = store.get('v:profile');
@@ -958,6 +1158,37 @@ function renderRosterList(d) {
 }
 
 // ================================================================
+// v4.9：我的課表 — 整個月的月曆（地區 → 據點 → 月曆），點課堂看學員、確認上課
+// ================================================================
+app.schedState = { region: '', venue: '', day: '' };
+function openSchedule(month) {
+  setBack(null);
+  app.schedMonth = /^\d{4}-\d{2}$/.test(month || '') ? month : app.schedMonth || MonthCal.thisMonth();
+  return view('sched:' + app.schedMonth, { action: 'schedule', month: app.schedMonth }, renderSchedule);
+}
+function renderSchedule(d) {
+  setBack(null);
+  app.schedMonth = d.month;
+  MonthCal.render($('sc_box'), {
+    month: d.month, today: d.today, items: d.items || [], state: app.schedState, unit: '堂',
+    emptyText: '這個月沒有你授課的課堂',
+    onMonth: (m) => { app.schedState.day = ''; openSchedule(m); },
+    itemNode: (s) => {
+      const tag = s.date === d.today ? (s.confirmed ? '已點名' : '未點名') : s.date < d.today ? (s.confirmed ? '已點名' : '未點名') : s.pendingClass ? '待成班' : '';
+      return el('button', { class: 'item sc-item', type: 'button', onclick: () => openRoster(s.id, () => openSchedule(d.month)) }, [
+        el('div', { class: 'top' }, [
+          el('span', { text: s.start + (s.end ? '–' + s.end : '') }),
+          tag ? el('span', { class: 'tag' + (tag === '已點名' ? ' ok' : ''), text: tag }) : null,
+        ]),
+        el('div', { text: (s.single ? '【專項】' : '') + (s.className || '（未命名班級）') }),
+        el('div', { class: 'sub', text: [s.place || s.venue, s.lesson ? '第 ' + s.lesson + ' 堂' : '', '報名 ' + (s.count || 0) + ' 人', s.pendingClass ? (s.pendingNote || '待成班') : ''].filter(Boolean).join('・') }),
+      ]);
+    },
+  });
+  show('viewSchedule', '我的課表');
+}
+
+// ================================================================
 // v4.4：確認上課清單 — 與課堂學員清單同一個請求與快取鍵（rlist），確認上課送出後一起失效
 // ================================================================
 function openConfirmList() {
@@ -1359,6 +1590,8 @@ function route(params) {
     openConfirmList(); // v4.4：選單「確認上課」
   } else if (app.page === 'unavailable') {
     openUnavail();
+  } else if (app.page === 'schedule') {
+    openSchedule(params.month); // v4.9
   } else {
     openProfile();
   }
