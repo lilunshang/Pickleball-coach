@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>理論上匹克球｜教練</title>
+<!-- v4.10（2026/11/8）：教練資料頁加「匯款帳戶」— 自己登錄／修改，存檔後 LINE 通知本人；?page=profile&sec=bank 直接打開（須搭配 GAS v4.10） -->
 <!-- v4.9（2026/11/1）：我的課表改成 LIFF 頁面 ?page=schedule — 整個月的月曆，可依地區、據點篩選，點日期只看那天；點課堂看學員／確認上課；分頁列加「課表」（須搭配 GAS v4.9） -->
 <!-- v4.6（2026/10/26）：單堂專項課 — 籌備中顯示「待成班（M/D 12:00 決定）」、不顯示第 1 堂（須搭配 GAS v4.6） -->
 <!-- v4.5（2026/10/26）：開啟速度比照場主 OA — 一開就帶回 確認上課／課程日誌／不可排日期／教練資料 的資料（init bundle，須搭配 GAS v4.5）；
@@ -194,6 +195,13 @@
   /* v4.9：我的課表 */
   .sc-item .top { display: flex; justify-content: space-between; gap: 8px; font-weight: 700; color: var(--green-dark); }
   .sc-item .tag.ok { color: var(--green); }
+  /* v4.10：匯款帳戶 */
+  .bk-cur { background: var(--green-light, #e6f0eb); border-radius: 10px; padding: 10px 12px; margin-bottom: 12px; font-size: 14px; }
+  .bk-cur b { font-size: 16px; color: var(--green-dark); }
+  .bk-cur .mut { color: var(--muted); display: inline-block; min-width: 2.6em; }
+  .bk-warn { color: #b4572e; font-weight: 700; font-size: 14px; margin-bottom: 10px; }
+  .bk-btns { display: flex; gap: 8px; }
+  .bk-btns button { flex: 1; }
   .sc-item .cnt { font-size: 12px; font-weight: 700; color: var(--green); white-space: nowrap; }
 </style>
 </head>
@@ -276,6 +284,12 @@
       <div class="chips grid3" id="p_slots"></div>
       <div class="hint">可複選</div>
     </div>
+  </div>
+  <!-- v4.10：匯款帳戶（在職教練才顯示；打開才讀，不存在手機裡） -->
+  <div class="card hidden" id="bankCard">
+    <h2>匯款帳戶</h2>
+    <div class="hint" style="margin:-6px 0 12px">教練費、場主費會匯到這個帳戶。同時是教練和場主的人只要填一次，兩邊共用。</div>
+    <div id="bankBox"></div>
   </div>
   <div class="bar"><div class="bar-inner"><button class="primary" id="btnProfile" type="button">送出</button></div></div>
 </main>
@@ -573,9 +587,9 @@ var MonthCal = (function () {
 // ================================================================
 // 設定：建置手冊第 09 節
 // ================================================================
-const LIFF_ID = '2011926553-HztSwfha';          // 例：2001234567-AbCdEfGh
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbx9cI5ewgB8mSUg_lIiiqa9VcrWUice74TXzA8c_t4xP_D4q16ja7nyoAi7kDCI3JOz7A/exec';  // https://script.google.com/macros/s/…/exec
-const SHOW_ERROR_CODE = false;                    // 測試期間顯示錯誤代碼；上線後改為 false
+const LIFF_ID = '請填入教練 LIFF ID';          // 例：2001234567-AbCdEfGh
+const GAS_URL = '請填入 GAS 網頁應用程式網址';  // https://script.google.com/macros/s/…/exec
+const SHOW_ERROR_CODE = true;                    // 測試期間顯示錯誤代碼；上線後改為 false
 
 // ================================================================
 // 共用
@@ -908,6 +922,7 @@ function renderProfile(d) {
   renderChips($('p_levels'), 'level', d.levels || [], c.可教程度);
   renderChips($('p_slots'), 'slot', d.slots || [], c.可排課時段);
   banner('profileBanner', PROFILE_STATUS[d.status] || PROFILE_STATUS.new, d.status === 'inactive');
+  bankReset(d.status === 'active'); // v4.10
   $('btnProfile').textContent = d.status === 'new' ? '送出審核' : '儲存修改';
   show('viewProfile', d.status === 'new' ? '填寫教練資料' : '教練資料');
 }
@@ -942,6 +957,76 @@ $('btnProfile').addEventListener('click', async () => {
   store.del('v:profile');
   showDone(r.data.isNew ? '已送出審核' : '已儲存', msg[r.data.status] || '資料已送出。');
 });
+
+// ================================================================
+// v4.10：匯款帳戶（1_人員_請款資料；與場主 OA 共用同一筆）
+// ================================================================
+const BANKS = ['004 臺灣銀行', '005 土地銀行', '006 合作金庫', '007 第一銀行', '008 華南銀行', '009 彰化銀行',
+  '011 上海商銀', '012 台北富邦', '013 國泰世華', '017 兆豐銀行', '048 王道銀行', '050 臺灣企銀', '052 渣打銀行',
+  '053 台中銀行', '081 匯豐銀行', '103 新光銀行', '108 陽信銀行', '700 中華郵政', '803 聯邦銀行', '805 遠東銀行',
+  '806 元大銀行', '807 永豐銀行', '808 玉山銀行', '809 凱基銀行', '810 星展銀行', '812 台新銀行', '822 中國信託',
+  '823 將來銀行', '824 連線銀行（LINE Bank）', '826 樂天銀行'];
+const escH = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+function bankReset(active) {
+  $('bankCard').classList.toggle('hidden', !active);
+  if (!active) return;
+  $('bankBox').innerHTML = '<button class="ghost" type="button" id="bankOpen">查看／修改匯款帳戶</button>';
+  $('bankOpen').onclick = openBank;
+  if (app.wantBank && !document.body.classList.contains('stale')) { app.wantBank = false; openBank(); }
+}
+
+async function openBank() {
+  const box = $('bankBox');
+  box.innerHTML = '<div class="hint">讀取中…</div>';
+  let r;
+  try { r = await callGas({ action: 'bankGet' }); } catch (e) { r = { ok: false, message: '連線逾時，請稍後再試' }; }
+  if (!r.ok) {
+    box.innerHTML = '<div class="bk-warn">' + escH(r.message || '讀取失敗') + '</div><button class="ghost" type="button" id="bankOpen">再試一次</button>';
+    $('bankOpen').onclick = openBank;
+    return;
+  }
+  drawBank(r, !r.has);
+  $('bankCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function drawBank(d, editing) {
+  const box = $('bankBox');
+  const cur = d.has
+    ? '<div class="bk-cur"><div><span class="mut">銀行</span> <b>' + escH(d.bank || '（未填）') + '</b></div>' +
+      '<div><span class="mut">帳號</span> <b>' + (d.tail ? '•••• ' + escH(d.tail) : '（未填）') + '</b>　<span class="hint">只顯示末五碼</span></div></div>'
+    : '<div class="bk-warn">還沒有登錄匯款帳戶</div>';
+  if (!editing) {
+    box.innerHTML = cur + '<button class="ghost" type="button" id="bankEdit">修改匯款帳戶</button>';
+    $('bankEdit').onclick = () => drawBank(d, true);
+    return;
+  }
+  box.innerHTML = (d.has ? cur : '') +
+    '<div class="field" data-field="bk_bank"><label class="title" for="bk_bank">銀行<span class="req">*</span></label>' +
+    '<input type="text" id="bk_bank" list="bk_list" maxlength="40" autocomplete="off" placeholder="點一下選擇，或輸入「代碼 銀行名」" value="' + escH(d.bank || '') + '">' +
+    '<datalist id="bk_list">' + BANKS.map((b) => '<option value="' + escH(b) + '">').join('') + '</datalist>' +
+    '<div class="error-text">請選擇或填寫銀行</div></div>' +
+    '<div class="field" data-field="bk_acct"><label class="title" for="bk_acct">帳號<span class="req">*</span></label>' +
+    '<input type="text" id="bk_acct" inputmode="numeric" maxlength="24" autocomplete="off" placeholder="只填數字">' +
+    '<div class="error-text">帳號請填 8～16 位數字</div></div>' +
+    '<div class="field" data-field="bk_acct2"><label class="title" for="bk_acct2">再輸入一次帳號<span class="req">*</span></label>' +
+    '<input type="text" id="bk_acct2" inputmode="numeric" maxlength="24" autocomplete="off" placeholder="確認用">' +
+    '<div class="error-text">兩次輸入的帳號不一樣</div></div>' +
+    '<div class="hint" style="margin:-4px 0 12px">戶名須是你本人。儲存後馬上生效，LINE 會傳一則通知給你。</div>' +
+    '<div class="bk-btns">' + (d.has ? '<button class="ghost" type="button" id="bankCancel">取消</button>' : '') +
+    '<button class="primary" type="button" id="bankSave">儲存帳戶</button></div>';
+  if (d.has) $('bankCancel').onclick = () => drawBank(d, false);
+  $('bankSave').onclick = async () => {
+    const digits = (v) => String(v || '').replace(/\D/g, '');
+    const data = { action: 'bankSave', bank: $('bk_bank').value.trim(), account: digits($('bk_acct').value), account2: digits($('bk_acct2').value) };
+    const checks = { bk_bank: !data.bank, bk_acct: !/^\d{8,16}$/.test(data.account), bk_acct2: data.account !== data.account2 };
+    if (Object.keys(checks).filter((k) => { markInvalid(k, checks[k]); return checks[k]; }).length) return;
+    const r = await send($('bankSave'), data);
+    if (!r.ok) return toast(r.message);
+    toast(r.data.message || '已儲存');
+    drawBank(r.data, false);
+  };
+}
 
 // ================================================================
 // 課程日誌
@@ -1580,6 +1665,7 @@ function readParams() {
 
 function route(params) {
   app.page = params.page || 'profile';
+  if (params.sec === 'bank') app.wantBank = true; // v4.10
   if (app.page === 'journal') {
     if (params.session) openJournalForm(params.session); else openJournalList();
   } else if (app.page === 'roster') {
