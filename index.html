@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>理論上匹克球｜教練</title>
+<!-- v4.12（2026/11/10）：不可排日期頁改成「可排時間」— 上方勾可以安排的據點與每週時段，下方照舊登記不可排日期；教練資料不再顯示「可排課時段」（須搭配 GAS v4.12） -->
 <!-- v4.10（2026/11/8）：教練資料頁加「匯款帳戶」— 自己登錄／修改，存檔後 LINE 通知本人；?page=profile&sec=bank 直接打開（須搭配 GAS v4.10） -->
 <!-- v4.9（2026/11/1）：我的課表改成 LIFF 頁面 ?page=schedule — 整個月的月曆，可依地區、據點篩選，點日期只看那天；點課堂看學員／確認上課；分頁列加「課表」（須搭配 GAS v4.9） -->
 <!-- v4.6（2026/10/26）：單堂專項課 — 籌備中顯示「待成班（M/D 12:00 決定）」、不顯示第 1 堂（須搭配 GAS v4.6） -->
@@ -51,6 +52,13 @@
   .chips { display: flex; flex-wrap: wrap; gap: 8px; }
   .chips.grid3 { display: grid; grid-template-columns: repeat(3, 1fr); }
   .chips.grid5 { display: grid; grid-template-columns: repeat(5, 1fr); }
+  .av-region { font-size: .85rem; color: var(--muted, #666); margin: 12px 0 4px; }
+  .av-venue { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; }
+  .av-venue > label { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+  .av-venue > label input { width: 20px; height: 20px; }
+  .av-venue .chips { margin-top: 8px; }
+  .av-venue.off .chips { display: none; }
+  .av-venue .chip span { padding: 7px 10px; font-size: .92em; }
   .chip { position: relative; }
   .chip input { position: absolute; opacity: 0; pointer-events: none; }
   .chip span { display: block; text-align: center; padding: 9px 10px; border: 1px solid var(--line); border-radius: 999px;
@@ -219,7 +227,7 @@
   <button type="button" data-tab="schedule">課表</button>
   <button type="button" data-tab="confirm">確認上課</button>
   <button type="button" data-tab="journal">課程日誌</button>
-  <button type="button" data-tab="unavailable">不可排日期</button>
+  <button type="button" data-tab="unavailable">可排時間</button>
   <button type="button" data-tab="profile">教練資料</button>
 </nav>
 
@@ -279,7 +287,7 @@
       <label class="title" for="p_skill">擅長項目</label>
       <textarea id="p_skill" maxlength="500" placeholder="例：新手入門、雙打戰術、發球"></textarea>
     </div>
-    <div class="field">
+    <div class="field hidden"><!-- v4.12：改用「可排時間」頁（據點＋每週時段），這欄不再顯示 -->
       <label class="title">可排課時段</label>
       <div class="chips grid3" id="p_slots"></div>
       <div class="hint">可複選</div>
@@ -403,6 +411,15 @@
 <!-- ============ 不可排日期 ============ -->
 <main id="viewUnavail" class="hidden">
   <div id="u_warn" class="banner warn hidden"></div>
+  <!-- v4.12：可以安排的據點與每週時段（場主、教練共用同一份） -->
+  <div class="card" id="a_card">
+    <h2>可以安排的據點與時段</h2>
+    <div class="hint" style="margin:-4px 0 10px">勾選你可以去的據點，再勾那個據點可以的時段；據點有勾、時段都沒勾＝那個據點全部時段都可以。同時是場主和教練的人填一次，兩邊共用。</div>
+    <div id="a_box"></div>
+    <div class="error-text" id="a_error" style="margin:6px 0 10px"></div>
+    <button class="primary" id="btnAvail" type="button">儲存可排時間</button>
+    <div class="hint" id="a_updated" style="margin-top:8px"></div>
+  </div>
   <div class="card">
     <h2>新增不可排日期</h2>
     <div class="row2">
@@ -587,9 +604,9 @@ var MonthCal = (function () {
 // ================================================================
 // 設定：建置手冊第 09 節
 // ================================================================
-const LIFF_ID = '2011926553-HztSwfha';          // 例：2001234567-AbCdEfGh
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbx9cI5ewgB8mSUg_lIiiqa9VcrWUice74TXzA8c_t4xP_D4q16ja7nyoAi7kDCI3JOz7A/exec';  // https://script.google.com/macros/s/…/exec
-const SHOW_ERROR_CODE = false;                    // 測試期間顯示錯誤代碼；上線後改為 false
+const LIFF_ID = '請填入教練 LIFF ID';          // 例：2001234567-AbCdEfGh
+const GAS_URL = '請填入 GAS 網頁應用程式網址';  // https://script.google.com/macros/s/…/exec
+const SHOW_ERROR_CODE = true;                    // 測試期間顯示錯誤代碼；上線後改為 false
 
 // ================================================================
 // 共用
@@ -1560,7 +1577,8 @@ function renderUnavailPage(d, warnList) {
   $('u_end').min = d.today;
   if (!$('u_start').value || $('u_start').value < d.today) $('u_start').value = d.today;
   renderUnavail(d.items);
-  show('viewUnavail', '不可排日期');
+  renderAvail(d.avail);
+  show('viewUnavail', '可排時間');
 }
 
 function renderUnavail(items) {
@@ -1590,6 +1608,53 @@ function renderUnavail(items) {
     list.appendChild(row);
   });
 }
+
+// v4.12：可以安排的據點與每週時段
+function renderAvail(a) {
+  const box = $('a_box');
+  $('a_error').style.display = 'none';
+  box.innerHTML = '';
+  if (!a || !a.ready) {
+    box.appendChild(el('div', { class: 'empty', text: '系統還沒開放這個功能，請聯絡營運' }));
+    $('btnAvail').classList.add('hidden');
+    return;
+  }
+  $('btnAvail').classList.remove('hidden');
+  if (!a.choices.length) box.appendChild(el('div', { class: 'empty', text: '目前沒有可以選的據點' }));
+  const vs = new Set(a.mine.venues);
+  const ks = new Set(a.mine.slots);
+  let region = null;
+  a.choices.forEach((v) => {
+    if (v.region !== region) { region = v.region; box.appendChild(el('div', { class: 'av-region', text: region || '其他' })); }
+    const cb = el('input', { type: 'checkbox', value: v.id });
+    cb.checked = vs.has(v.id);
+    const chips = el('div', { class: 'chips' });
+    renderChips(chips, 'av_' + v.id, v.slots.map((s) => ({ id: s.key, name: s.label })), v.slots.filter((s) => ks.has(s.key)).map((s) => s.key));
+    const wrap = el('div', { class: 'av-venue' + (cb.checked ? '' : ' off'), 'data-venue': v.id }, [el('label', {}, [cb, el('span', { text: v.name })]), chips]);
+    cb.addEventListener('change', () => wrap.classList.toggle('off', !cb.checked));
+    box.appendChild(wrap);
+  });
+  $('a_updated').textContent = a.mine.filled && a.mine.updated ? '上次更新：' + String(a.mine.updated).slice(0, 10).replace(/-/g, '/') : '還沒填過';
+}
+
+$('btnAvail').addEventListener('click', async () => {
+  const e = $('a_error');
+  e.style.display = 'none';
+  const venues = [];
+  const slots = [];
+  document.querySelectorAll('#a_box .av-venue').forEach((w) => {
+    if (!w.querySelector('label > input').checked) return;
+    venues.push(w.dataset.venue);
+    w.querySelectorAll('.chips input:checked').forEach((i) => slots.push(i.value));
+  });
+  if (!venues.length) { e.textContent = '請至少勾選一個可以安排的據點'; e.style.display = 'block'; return; }
+  const r = await send($('btnAvail'), { action: 'availSave', venues: venues, slots: slots });
+  if (!r.ok) { e.textContent = r.message; e.style.display = 'block'; return; }
+  const d = Object.assign({ ok: true }, r.data);
+  remember('unavail', d);
+  renderAvail(d.avail);
+  toast('已儲存可排時間');
+});
 
 /** 第一次點「刪除」變成「確定刪除？」，再點一次才刪（避免使用會卡住 LINE 的 confirm 對話框） */
 function confirmInline(btn) {
