@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>理論上匹克球｜教練</title>
+<!-- v4.15（2026/11/14）：送出時整頁等待畫面；開啟計時（各段耗時回報到 9_開啟計時，須搭配 GAS v4.15） -->
 <!-- v4.12（2026/11/10）：不可排日期頁改成「可排時間」— 上方勾可以安排的據點與每週時段，下方照舊登記不可排日期；教練資料不再顯示「可排課時段」（須搭配 GAS v4.12） -->
 <!-- v4.10（2026/11/8）：教練資料頁加「匯款帳戶」— 自己登錄／修改，存檔後 LINE 通知本人；?page=profile&sec=bank 直接打開（須搭配 GAS v4.10） -->
 <!-- v4.9（2026/11/1）：我的課表改成 LIFF 頁面 ?page=schedule — 整個月的月曆，可依地區、據點篩選，點日期只看那天；點課堂看學員／確認上課；分頁列加「課表」（須搭配 GAS v4.9） -->
@@ -86,6 +87,11 @@
   @keyframes spin { to { transform: rotate(360deg); } }
   .check { width: 56px; height: 56px; margin: 0 auto; border-radius: 50%; background: var(--green); color: #fff; font-size: 30px; line-height: 56px; }
   .hidden { display: none !important; }
+  /* v4.15：送出時的整頁等待畫面 */
+  #busy { position: fixed; inset: 0; z-index: 80; background: rgba(245,248,246,.86); display: flex; align-items: center; justify-content: center; padding: 24px; }
+  #busy .busy-box { background: #fff; border: 1px solid var(--line); border-radius: var(--radius); padding: 22px 20px; width: 100%; max-width: 300px; text-align: center; box-shadow: 0 6px 24px rgba(0,0,0,.08); }
+  #busy #busyText { margin: 14px 0 4px; font-size: 18px; font-weight: 700; color: var(--green-dark); }
+  #busy #busyHint { margin: 0; font-size: 15px; color: var(--muted); min-height: 3.1em; }
   .code { font-size: 12px; color: var(--muted); margin-top: 16px; word-break: break-all; }
   .section-title { font-size: 13px; font-weight: 700; color: var(--muted); margin: 18px 4px 8px; letter-spacing: .05em; }
   .item { display: block; width: 100%; text-align: left; background: #fff; border: 1px solid var(--line); border-radius: var(--radius);
@@ -233,6 +239,10 @@
   <span class="sync hidden" id="syncPill">更新中…</span>
 </header>
 <div class="toast hidden" id="toast" role="status"></div>
+<!-- v4.15：送出時的等待畫面（擋住其他按鈕，避免重按或中途離開） -->
+<div id="busy" class="hidden" role="status" aria-live="polite">
+  <div class="busy-box"><div class="spinner"></div><p id="busyText">送出中…</p><p id="busyHint"></p></div>
+</div>
 <!-- v4.5：分頁列（在職教練才顯示） -->
 <nav id="tabbar" class="tabbar hidden">
   <button type="button" data-tab="schedule">課表</button>
@@ -626,6 +636,50 @@ const $ = (id) => document.getElementById(id);
 const VIEWS = ['viewLoading', 'viewError', 'viewDone', 'viewSchedule', 'viewProfile', 'viewJournalList', 'viewJournalForm', 'viewRosterList', 'viewRoster', 'viewConfirmList', 'viewConfirm', 'viewUnavail'];
 const app = { idToken: '', page: 'profile', backTo: null, nav: 0, early: false };
 
+// ================================================================
+// v4.15：開啟計時 — 手機端各段花多久（從網頁開始載入算起，毫秒），開完頁後在背景回報一次（不擋畫面）
+//   伺服器 init 回傳 perf＝1 才回報（指令碼屬性 PERF_LOG＝off 可關閉）；送出類動作也回報來回時間
+// ================================================================
+const APP_VER = '4.15';
+const PERF = { t: {}, srv: {}, first: '', tok: 0, hop: 0, on: false, sent: false };
+function pmark(k) { try { if (!(k in PERF.t)) PERF.t[k] = Math.round(performance.now()); } catch (e) { /* 計時失敗不影響功能 */ } }
+function perfSend(item, x) {
+  try {
+    if (!PERF.on || !app.idToken) return;
+    const c = navigator.connection || {};
+    const ua = navigator.userAgent || '';
+    const body = Object.assign({ action: 'perf', idToken: app.idToken, v: APP_VER, item: item, net: c.effectiveType || '',
+      dev: /iPhone|iPad|iPod/.test(ua) ? 'iOS' : /Android/.test(ua) ? 'Android' : '其他' }, x || {});
+    setTimeout(() => { fetch(GAS_URL, { method: 'POST', body: JSON.stringify(body), keepalive: true }).catch(() => {}); }, 1200);
+  } catch (e) { /* 回報失敗不影響功能 */ }
+}
+/** 第一頁換上最新資料時回報一次 */
+function perfOpened(key) {
+  if (PERF.sent) return;
+  PERF.sent = true;
+  pmark('done');
+  if (!PERF.first) { PERF.first = '等待'; PERF.t.paint = PERF.t.done; }
+  perfSend('open:' + key, { first: PERF.first, tok: PERF.tok, hop: PERF.hop, t: PERF.t, srv: PERF.srv });
+}
+
+// ---- v4.15：送出時的整頁等待畫面（超過 6 秒、15 秒換一句說明） ----
+let busyTimers = [];
+function busyShow(text) {
+  $('busyText').textContent = text || '送出中…';
+  $('busyHint').textContent = '通常需要幾秒鐘';
+  $('busy').classList.remove('hidden');
+  busyTimers.forEach(clearTimeout);
+  busyTimers = [
+    setTimeout(() => { $('busyHint').textContent = '還在處理中，請不要關閉畫面，也不用重按'; }, 6000),
+    setTimeout(() => { $('busyHint').textContent = '比平常久一些，系統仍在處理，請再等一下'; }, 15000),
+  ];
+}
+function busyHide() {
+  busyTimers.forEach(clearTimeout);
+  busyTimers = [];
+  $('busy').classList.add('hidden');
+}
+
 function show(view, title) {
   VIEWS.forEach((v) => $(v).classList.toggle('hidden', v !== view));
   syncTabbar(view);
@@ -733,8 +787,11 @@ function recall(key) {
 
 // ---- v4.5：開頁一次 init（bundle）帶回所有選單頁 ----
 function startBoot() {
+  pmark('send'); // v4.15
   app.boot = callGas({ action: 'init', bundle: true }).then((r) => {
+    pmark('init'); // v4.15
     if (r && r.ok) {
+      PERF.on = !!r.perf; PERF.srv.init = r.srvMs; // v4.15
       app.status = r.status;
       const pages = r.pages || {};
       remember('profile', Object.assign({}, r, { pages: null }));
@@ -843,12 +900,13 @@ async function view(key, payload, render) {
   if (hot) {
     setStale(false);
     render(hot);
+    perfOpened(key); // v4.15
     return hot;
   }
   const snap = store.get('v:' + key);
   if (snap) {
     setStale(true);
-    try { render(snap); } catch (e) { show('viewLoading'); } // 舊格式的快照畫不出來就算了
+    try { render(snap); if (!PERF.first) { PERF.first = '上次畫面'; pmark('paint'); } } catch (e) { show('viewLoading'); } // 舊格式的快照畫不出來就算了
   } else {
     setStale(false);
     show('viewLoading');
@@ -872,6 +930,7 @@ async function view(key, payload, render) {
   }
   remember(key, r);
   render(r);
+  perfOpened(key); // v4.15
   return r;
 }
 
@@ -883,12 +942,17 @@ async function send(button, payload) {
   const label = button.textContent;
   button.disabled = true;
   button.textContent = '送出中…';
+  busyShow('送出中…'); // v4.15
+  const t0 = performance.now();
   let last = '';
   try {
     for (let i = 0; i < 2; i++) {
       try {
         const r = await callGas(payload, 20000);
-        if (r.ok) return { ok: true, data: r };
+        if (r.ok) {
+          perfSend('act:' + payload.action, { back: Math.round(performance.now() - t0), srv: r.srvMs }); // v4.15
+          return { ok: true, data: r };
+        }
         if (r.error !== 'BUSY') return { ok: false, message: (r.message || '送出失敗') + (SHOW_ERROR_CODE ? '（' + r.error + '）' : '') };
         last = 'BUSY';
       } catch (e) {
@@ -897,6 +961,7 @@ async function send(button, payload) {
     }
     return { ok: false, uncertain: true, message: '連線不穩定，資料可能已經送出。請稍後重新開啟確認；沒有更新的話再送一次即可（不會重複）。' + (SHOW_ERROR_CODE ? '（' + last + '）' : '') };
   } finally {
+    busyHide(); // v4.15
     button.disabled = false;
     button.textContent = label;
   }
@@ -1805,6 +1870,7 @@ async function initLiff() {
   if (exp) store.set('tok', { token: token, exp: exp });
   app.idToken = token;
   app.early = false;
+  pmark('liff'); // v4.15
   readyResolve();
 }
 
@@ -1813,6 +1879,7 @@ function main() {
   // 從選單開啟的第一次載入（網址帶 liff.state）會在 liff.init() 時轉址，這時先不送請求，只畫上次的畫面
   const firstHop = new URLSearchParams(location.search).has('liff.state');
   const token = firstHop ? '' : savedToken();
+  PERF.tok = token ? 1 : 0; PERF.hop = firstHop ? 1 : 0; // v4.15
   if (token) {
     app.idToken = token;
     app.early = true;
