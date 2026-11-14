@@ -211,6 +211,17 @@
   .bk-btns { display: flex; gap: 8px; }
   .bk-btns button { flex: 1; }
   .sc-item .cnt { font-size: 12px; font-weight: 700; color: var(--green); white-space: nowrap; }
+  /* v4.14：課表人數 */
+  .sc-item .hc { margin-top: 8px; display: grid; gap: 6px; font-size: 13px; text-align: left; }
+  .sc-item .hc-row { display: flex; justify-content: space-between; }
+  .sc-item .hc-bar { height: 6px; background: #e3e8e5; border-radius: 3px; overflow: hidden; }
+  .sc-item .hc-bar i { display: block; height: 100%; background: #1f5f4a; }
+  .sc-item .hc-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+  .sc-item .hc-grid > div { background: #f4f6f4; border-radius: 8px; padding: 6px 8px; }
+  .sc-item .hc-form { color: #1f5f4a; font-weight: 600; }
+  .sc-item .hc-form.short { color: #8a4500; }
+  .sc-item .hc-tip { color: #5f6b66; font-size: 12px; }
+  #r_sub { white-space: pre-line; }
 </style>
 </head>
 <body>
@@ -542,7 +553,7 @@ var MonthCal = (function () {
         grid.appendChild(h('button', { type: 'button', class: cls, disabled: !n, 'aria-label': dateLabel(key) + (n ? ' ' + n + ' ' + unit : ''),
           onclick: function () { st.day = st.day === key ? '' : key; again(); } }, [
           h('span', { class: 'n', text: String(+key.slice(8)) }),
-          n ? h('span', { class: 'c', text: String(n) }) : null,
+          n ? h('span', { class: 'c', text: String(opt.dayText ? (opt.dayText(shown.filter(function (it) { return it.date === key; })) || n) : n) }) : null, // v4.14：dayText 可換成別的字（例如人數）
         ]));
       })(opt.month + '-' + pad(d), count[opt.month + '-' + pad(d)] || 0);
     }
@@ -1268,12 +1279,33 @@ function openSchedule(month) {
   app.schedMonth = /^\d{4}-\d{2}$/.test(month || '') ? month : app.schedMonth || MonthCal.thisMonth();
   return view('sched:' + app.schedMonth, { action: 'schedule', month: app.schedMonth }, renderSchedule);
 }
+/** v4.14：今天以後的課堂人數（與場主排班相同的樣式） */
+function hcBlock(c) {
+  if (!c) return null;
+  const n = c.reg + c.makeup;
+  const pct = c.limit ? Math.min(100, Math.round(n / c.limit * 100)) : 0;
+  const rows = [
+    el('div', { class: 'hc-row' }, [el('span', { text: '學員' }), el('b', { text: n + (c.limit ? ' ／ ' + c.limit : '') + ' 人' })]),
+    c.limit ? el('div', { class: 'hc-bar' }, [el('i', { style: 'width:' + pct + '%' })]) : null,
+    el('div', { class: 'hc-grid' }, [
+      el('div', { text: '報名 ' + c.reg + ' 人' }),
+      el('div', { text: '補課 ' + c.makeup + ' 人' }),
+    ]),
+  ];
+  if (c.pending) rows.push(el('div', { class: 'hc-form' + (c.need ? ' short' : ''), text: '已付款 ' + c.paid + ' 人・' + c.min + ' 人成班・' + (c.need ? '還差 ' + c.need + ' 人' : '人數已夠') }));
+  rows.push(el('div', { class: 'hc-tip', text: '點這堂看學員名單' }));
+  return el('div', { class: 'hc' }, rows);
+}
 function renderSchedule(d) {
   setBack(null);
   app.schedMonth = d.month;
   MonthCal.render($('sc_box'), {
     month: d.month, today: d.today, items: d.items || [], state: app.schedState, unit: '堂',
     emptyText: '這個月沒有你授課的課堂',
+    dayText: (its) => { // v4.14：日期下方顯示學員人數（今天以後）
+      const cs = its.filter((x) => x.hc);
+      return cs.length ? cs.reduce((t, x) => t + x.hc.reg + x.hc.makeup, 0) + ' 人' : '';
+    },
     onMonth: (m) => { app.schedState.day = ''; openSchedule(m); },
     itemNode: (s) => {
       const tag = s.date === d.today ? (s.confirmed ? '已點名' : '未點名') : s.date < d.today ? (s.confirmed ? '已點名' : '未點名') : s.pendingClass ? '待成班' : '';
@@ -1283,7 +1315,8 @@ function renderSchedule(d) {
           tag ? el('span', { class: 'tag' + (tag === '已點名' ? ' ok' : ''), text: tag }) : null,
         ]),
         el('div', { text: (s.single ? '【專項】' : '') + (s.className || '（未命名班級）') }),
-        el('div', { class: 'sub', text: [s.place || s.venue, s.lesson ? '第 ' + s.lesson + ' 堂' : '', '報名 ' + (s.count || 0) + ' 人', s.pendingClass ? (s.pendingNote || '待成班') : ''].filter(Boolean).join('・') }),
+        el('div', { class: 'sub', text: [s.place || s.venue, s.lesson ? '第 ' + s.lesson + ' 堂' : '', s.hc ? '' : '報名 ' + (s.count || 0) + ' 人', s.pendingClass ? (s.pendingNote || '待成班') : ''].filter(Boolean).join('・') }),
+        hcBlock(s.hc),
       ]);
     },
   });
@@ -1327,7 +1360,8 @@ function renderRoster(sessionId, back, d) {
   const reopen = () => openRoster(sessionId, back);
 
   $('r_title').textContent = s.dateText + ' ' + s.start + (s.end ? '–' + s.end : '') + '　' + (s.className || '');
-  $('r_sub').textContent = [s.tag, s.place || s.venue, s.pendingClass ? (s.pendingNote || '待成班') : '', s.lesson ? '第 ' + s.lesson + ' 堂' : '', '本班已上 ' + d.heldCount + ' 堂'].filter(Boolean).join('・');
+  $('r_sub').textContent = [s.tag, s.place || s.venue, s.pendingClass ? (s.pendingNote || '待成班') : '', s.lesson ? '第 ' + s.lesson + ' 堂' : '', '本班已上 ' + d.heldCount + ' 堂'].filter(Boolean).join('・')
+    + (s.date > new Date(Date.now() + 8 * 3600000).toISOString().slice(0, 10) ? '\n還沒到上課日，可以先看名單；點名在上課當天操作。' : ''); // v4.14
 
   // 上一堂的紀錄
   const prevBox = $('r_prev');
