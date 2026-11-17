@@ -640,7 +640,7 @@ const app = { idToken: '', page: 'profile', backTo: null, nav: 0, early: false }
 // v4.15：開啟計時 — 手機端各段花多久（從網頁開始載入算起，毫秒），開完頁後在背景回報一次（不擋畫面）
 //   伺服器 init 回傳 perf＝1 才回報（指令碼屬性 PERF_LOG＝off 可關閉）；送出類動作也回報來回時間
 // ================================================================
-const APP_VER = '4.15';
+const APP_VER = '4.16';
 const PERF = { t: {}, srv: {}, first: '', tok: 0, hop: 0, on: false, sent: false };
 function pmark(k) { try { if (!(k in PERF.t)) PERF.t[k] = Math.round(performance.now()); } catch (e) { /* 計時失敗不影響功能 */ } }
 function perfSend(item, x) {
@@ -1357,6 +1357,7 @@ function hcBlock(c) {
       el('div', { text: '補課 ' + c.makeup + ' 人' }),
     ]),
   ];
+  if (c.rackets) rows.push(el('div', { class: 'hc-row' }, [el('span', { text: '🏓 借球拍' }), el('b', { text: c.rackets + ' 支' })])); // v4.16
   if (c.pending) rows.push(el('div', { class: 'hc-form' + (c.need ? ' short' : ''), text: '已付款 ' + c.paid + ' 人・' + c.min + ' 人成班・' + (c.need ? '還差 ' + c.need + ' 人' : '人數已夠') }));
   rows.push(el('div', { class: 'hc-tip', text: '點這堂看學員名單' }));
   return el('div', { class: 'hc' }, rows);
@@ -1492,6 +1493,7 @@ function studentCard(st, noteCount, onWrite) {
   if (st.makeup) pills.push(el('span', { class: 'pill', text: '補課生' }));
   if (st.age !== '' && st.age !== undefined) pills.push(el('span', { class: 'pill grey', text: st.age + ' 歲' })); // v4.3
   if (st.guardian) pills.push(el('span', { class: 'pill', text: '家長 ' + st.guardian.name })); // v4.3
+  if (st.racket) pills.push(el('span', { class: 'pill', text: '🏓 借球拍' })); // v4.16
   if (st.arrivedAt) pills.push(el('span', { class: 'pill ok', text: '已到場 ' + st.arrivedAt }));
   if (ATTEND_TAG[st.thisStatus]) pills.push(el('span', { class: 'pill grey', text: ATTEND_TAG[st.thisStatus] }));
   if (st.advice) pills.push(el('span', { class: 'pill warn', text: st.advice }));
@@ -1587,6 +1589,7 @@ function renderConfirm(sessionId, back, d) {
           st.level ? el('span', { class: 'sc-level', text: st.level }) : null,
           st.makeup ? el('span', { class: 'sc-level', text: '・補課生' }) : null,
           st.guardian ? el('span', { class: 'sc-level', text: '・家長 ' + st.guardian }) : null,
+          st.racket ? el('span', { class: 'sc-level', text: '・🏓 借球拍' }) : null, // v4.16
         ]),
         el('span', { class: 'att-meta' + (st.arrivedAt ? ' in' : ''), text: meta }),
       ]),
