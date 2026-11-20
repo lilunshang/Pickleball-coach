@@ -640,7 +640,7 @@ const app = { idToken: '', page: 'profile', backTo: null, nav: 0, early: false }
 // v4.15：開啟計時 — 手機端各段花多久（從網頁開始載入算起，毫秒），開完頁後在背景回報一次（不擋畫面）
 //   伺服器 init 回傳 perf＝1 才回報（指令碼屬性 PERF_LOG＝off 可關閉）；送出類動作也回報來回時間
 // ================================================================
-const APP_VER = '4.17';
+const APP_VER = '4.18';
 const PERF = { t: {}, srv: {}, first: '', tok: 0, hop: 0, on: false, sent: false };
 function pmark(k) { try { if (!(k in PERF.t)) PERF.t[k] = Math.round(performance.now()); } catch (e) { /* 計時失敗不影響功能 */ } }
 function perfSend(item, x) {
